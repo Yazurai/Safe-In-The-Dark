@@ -99,8 +99,8 @@ public class HunterController : Photon.PunBehaviour
 	public void SetTripTrapHunter()
 	{
 		Class = "Trip Trap Hunter";
-		Ability1Timer = 60;
-		Ability1CoolDown = 60;
+		Ability1Timer = 15;
+		Ability1CoolDown = 15;
 		Ability2Timer = 45;
 		Ability2CoolDown = 45;
 		Ability1DurationTimer = 9;

@@ -81,6 +81,12 @@ public class StationBehaviour : Photon.MonoBehaviour
         Track2Sprite.color = new Color(1, 1, 1, a);
     }
 
+    private void Update()
+    {
+        Track1.transform.Rotate(new Vector3(0, 0, Speed * Time.deltaTime * 90));
+        Track2.transform.Rotate(new Vector3(0, 0, -Speed * Time.deltaTime * 90));
+    }
+
     IEnumerator UpdateBehaviour()
     {
         while (true)
@@ -103,8 +109,6 @@ public class StationBehaviour : Photon.MonoBehaviour
             {
                 SetColor(0);
             }
-            Track1.transform.Rotate(new Vector3(0, 0, Speed * Time.deltaTime * 90));
-            Track2.transform.Rotate(new Vector3(0, 0, -Speed * Time.deltaTime * 90));
             yield return new WaitForSeconds(0.1f);
         }
     }

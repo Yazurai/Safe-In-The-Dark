@@ -199,6 +199,7 @@ public class PlayerController : Photon.PunBehaviour
     void InteractPressDown()
     {
         InteractButtonIsPushed = true;
+        ProgressBar.color = new Color(0, 1, 0, 0.8f);
         MovCtrl.CanMove = false;
     }
 
@@ -219,7 +220,7 @@ public class PlayerController : Photon.PunBehaviour
     void ActivatePressDown()
     {
         ActivateButtonIsPushed = true;
-        ProgressBar.color = new Color(0, 1, 0, 0.8f);
+        ProgressBar2.color = new Color(1, 0, 0, 0.8f);
         MovCtrl.CanMove = false;
     }
 

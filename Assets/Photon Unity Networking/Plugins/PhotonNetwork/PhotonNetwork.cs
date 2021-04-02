@@ -28,7 +28,7 @@ using System.IO;
 public static class PhotonNetwork
 {
     /// <summary>Version number of PUN. Also used in GameVersion to separate client version from each other.</summary>
-    public const string versionPUN = "1.91";
+    public const string versionPUN = "1.103.1";
 
     /// <summary>Version string for your this build. Can be used to separate incompatible clients. Sent during connect.</summary>
     /// <remarks>This is only sent when you connect so that is also the place you set it usually (e.g. in ConnectUsingSettings).</remarks>
@@ -62,6 +62,16 @@ public static class PhotonNetwork
 
     /// <summary>Currently used Cloud Region (if any). As long as the client is not on a Master Server or Game Server, the region is not yet defined.</summary>
     public static CloudRegionCode CloudRegion { get { return (networkingPeer != null && connected && Server!=ServerConnection.NameServer) ? networkingPeer.CloudRegion : CloudRegionCode.none; } }
+
+    /// <summary>The cluster name provided by the Name Server.</summary>
+    /// <remarks>
+    /// The value is provided by the OpResponse for OpAuthenticate/OpAuthenticateOnce. See ConnectToRegion.
+    /// 
+    /// Null until set.
+    ///
+    /// Note that the Name Server may assign another cluster, if the requested one is not configured or available.
+    /// </remarks>
+    public static string CurrentCluster { get { return (networkingPeer != null ) ? networkingPeer.CurrentCluster : null; } }
 
     /// <summary>
     /// False until you connected to Photon initially. True in offline mode, while connected to any server and even while switching servers.
@@ -773,22 +783,6 @@ public static class PhotonNetwork
     private static bool m_isMessageQueueRunning = true;
 
     /// <summary>
-    /// Used once per dispatch to limit unreliable commands per channel (so after a pause, many channels can still cause a lot of unreliable commands)
-    /// </summary>
-    public static int unreliableCommandsLimit
-    {
-        get
-        {
-            return networkingPeer.LimitOfUnreliableCommands;
-        }
-
-        set
-        {
-            networkingPeer.LimitOfUnreliableCommands = value;
-        }
-    }
-
-    /// <summary>
     /// Photon network time, synched with the server.
     /// </summary>
     /// <remarks>
@@ -816,7 +810,6 @@ public static class PhotonNetwork
     /// </summary>
     /// <remarks>
     /// This can be useful to sync actions and events on all clients in one room.
-    /// The timestamp is based on the server's Environment.TickCount.
     ///
     /// It will overflow from a positive to a negative value every so often, so
     /// be careful to use only time-differences to check the time delta when things
@@ -830,20 +823,14 @@ public static class PhotonNetwork
         {
             if (offlineMode)
             {
-                if (UsePreciseTimer && startupStopwatch != null && startupStopwatch.IsRunning)
-                {
-                    return (int)startupStopwatch.ElapsedMilliseconds;
-                }
-                return Environment.TickCount;
+                return (int)startupStopwatch.ElapsedMilliseconds;   
             }
 
             return networkingPeer.ServerTimeInMilliSeconds;
         }
     }
 
-	/// <summary>If true, PUN will use a Stopwatch to measure time since start/connect. This is more precise than the Environment.TickCount used by default.</summary>
-    private static bool UsePreciseTimer = false;
-    static Stopwatch startupStopwatch;
+	static Stopwatch startupStopwatch;
 
     /// <summary>
     /// Defines how many seconds PUN keeps the connection, after Unity's OnApplicationPause(true) call. Default: 60 seconds.
@@ -1145,13 +1132,9 @@ public static class PhotonNetwork
         networkingPeer.AuthMode = AuthModeOption.Auth;
         #endif
 
-        if (UsePreciseTimer)
-        {
-            Debug.Log("Using Stopwatch as precision timer for PUN.");
-            startupStopwatch = new Stopwatch();
-            startupStopwatch.Start();
-            networkingPeer.LocalMsTimestampDelegate = () => (int)startupStopwatch.ElapsedMilliseconds;
-        }
+        startupStopwatch = new Stopwatch();
+        startupStopwatch.Start();
+        networkingPeer.LocalMsTimestampDelegate = () => (int)startupStopwatch.ElapsedMilliseconds;
 
         // Local player
         CustomTypes.Register();
@@ -1450,9 +1433,18 @@ public static class PhotonNetwork
 
 
     /// <summary>
-    /// Connects to the Photon Cloud region of choice.
+    /// Connects to the Photon Cloud region and cluster of choice.
     /// </summary>
-    public static bool ConnectToRegion(CloudRegionCode region, string gameVersion)
+    /// <remarks>
+    /// Connecting to a specific cluster may be necessary, when regions get sharded and you support friends.
+    /// 
+    /// In all other cases, you should not define a cluster as this allows the Name Server to distribute
+    /// clients as needed. A random, load balanced cluster will be selected if available.
+    ///
+    /// The Name Server has the final say to assign a cluster as available.
+    /// Once connected, check the value of CurrentCluster.
+    /// </remarks>
+    public static bool ConnectToRegion(CloudRegionCode region, string gameVersion, string cluster = null)
     {
         if (networkingPeer.PeerState != PeerStateValue.Disconnected)
         {
@@ -1473,11 +1465,10 @@ public static class PhotonNetwork
 
         networkingPeer.IsInitialConnect = true;
         networkingPeer.SetApp(PhotonServerSettings.AppID, gameVersion);
-
         if (region != CloudRegionCode.none)
         {
             Debug.Log("ConnectToRegion: " + region);
-            return networkingPeer.ConnectToRegionMaster(region);
+            return networkingPeer.ConnectToRegionMaster(region, cluster);
         }
 
         return false;
@@ -1599,15 +1590,16 @@ public static class PhotonNetwork
     /// ParameterCode.FindFriendsResponseRoomIdList = string[] of room names (empty string if not in a room)
     /// </remarks>
     /// <param name="friendsToFind">Array of friend (make sure to use unique playerName or AuthValues).</param>
+    /// <param name="options">Options that affect the result of the FindFriends operation.</param>
     /// <returns>If the operation could be sent (requires connection, only one request is allowed at any time). Always false in offline mode.</returns>
-    public static bool FindFriends(string[] friendsToFind)
+    public static bool FindFriends(string[] friendsToFind, FindFriendsOptions options = null)
     {
         if (networkingPeer == null || isOfflineMode)
         {
             return false;
         }
 
-        return networkingPeer.OpFindFriends(friendsToFind);
+        return networkingPeer.OpFindFriends(friendsToFind, options);
     }
 
 
@@ -3223,8 +3215,10 @@ public static class PhotonNetwork
     /// </param>
     public static void LoadLevel(int levelNumber)
     {
+        networkingPeer.AsynchLevelLoadCall = false;
+
 		if (PhotonNetwork.automaticallySyncScene) {
-			networkingPeer.SetLevelInPropsIfSynced (levelNumber);
+			networkingPeer.SetLevelInPropsIfSynced (levelNumber,true);
 		}
 
         PhotonNetwork.isMessageQueueRunning = false;
@@ -3253,6 +3247,8 @@ public static class PhotonNetwork
 	/// </param>
 	public static AsyncOperation LoadLevelAsync(int levelNumber)
 	{
+        networkingPeer.AsynchLevelLoadCall = true;
+
 		if (PhotonNetwork.automaticallySyncScene) {
 			networkingPeer.SetLevelInPropsIfSynced (levelNumber,true);
 		}
@@ -3282,8 +3278,10 @@ public static class PhotonNetwork
     /// </param>
     public static void LoadLevel(string levelName)
     {
+        networkingPeer.AsynchLevelLoadCall = false;
+
 		if (PhotonNetwork.automaticallySyncScene) {
-			networkingPeer.SetLevelInPropsIfSynced (levelName);
+			networkingPeer.SetLevelInPropsIfSynced (levelName,true);
 		}
 
         PhotonNetwork.isMessageQueueRunning = false;
@@ -3313,6 +3311,8 @@ public static class PhotonNetwork
 	/// <param name="mode">LoadSceneMode either single or additive</param>
 	public static AsyncOperation LoadLevelAsync(string levelName)
 	{
+        networkingPeer.AsynchLevelLoadCall = true;
+
 		if (PhotonNetwork.automaticallySyncScene) {
 			networkingPeer.SetLevelInPropsIfSynced (levelName,true);
 		}

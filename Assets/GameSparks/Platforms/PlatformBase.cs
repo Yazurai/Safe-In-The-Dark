@@ -527,6 +527,10 @@ namespace GameSparks.Platforms
 		/// Creates a (platform specific) Websocket and returns the instance.
 		/// </summary>
 		public abstract IGameSparksWebSocket GetSocket(string url, Action<string> messageReceived, Action closed, Action opened, Action<string> error);
-	}
+        /// <summary>
+		/// Creates a (platform specific) Websocket and returns the instance.
+		/// </summary>
+		public abstract IGameSparksWebSocket GetBinarySocket(string url, Action<byte[]> messageReceived, Action closed, Action opened, Action<string> error);
+    }
 
 }

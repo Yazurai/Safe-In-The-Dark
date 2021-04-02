@@ -20,6 +20,11 @@ public class PlayerMovementController : MonoBehaviour {
         Speed = s;
     }
 
+    private void Awake() {
+        PlayerCtrl = gameObject.GetComponent<PlayerController>();
+        PV = gameObject.GetComponent<PhotonView>();
+    }
+
     private void Update() {
         if (PV.isMine && PlayerCtrl.GameStarted) {
             if (CanMove) {

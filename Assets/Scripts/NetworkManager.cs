@@ -35,6 +35,8 @@ public class NetworkManager : PunBehaviour {
 
     public TransitionController TransCtrl;
 
+    private GameManager gm;
+
     [PunRPC]
     void SetSide(bool isHunter) {
         IsHunter = isHunter;
@@ -43,14 +45,16 @@ public class NetworkManager : PunBehaviour {
             Player.transform.GetChild(0).gameObject.SetActive(true);
             Player.GetComponent<HunterController>().Awaking();
             Player.GetComponent<HunterController>().SetShadowHunter();
-            IsHunter = true;
         } else {
             Player = PhotonNetwork.Instantiate("Player Prefab", SpawnPoints.GetComponent<StationSpawnerController>().GetSpawn().transform.position, Quaternion.identity, 0);
             Player.transform.GetChild(0).gameObject.SetActive(true);
             Player.GetComponent<PlayerController>().Awaking();
             Player.GetComponent<PlayerController>().SetNinja();
-            IsHunter = false;
         }
+        Notification.gameObject.transform.parent.gameObject.SetActive(false);
+        LobbyPanel.gameObject.SetActive(true);
+        LobbyPanel.GetComponent<LobbyPanelController>().NetworkMan = this;
+        LobbyPanel.GetComponent<LobbyPanelController>().Setup();
     }
 
     [PunRPC]
@@ -62,13 +66,8 @@ public class NetworkManager : PunBehaviour {
     void SetReady(bool isReady) {
         ReadyCount += isReady ? 1 : -1;
         if (ReadyCount == 2) {
-            Notification.transform.parent.gameObject.SetActive(true);
-            Notification.gameObject.SetActive(true);
-
-            StartCoroutine("Countdown");
-
             if (PhotonNetwork.isMasterClient) {
-                PhotonNetwork.Instantiate("Game Manager", Vector3.zero, Quaternion.identity, 0);
+                gm = PhotonNetwork.Instantiate("Game Manager", Vector3.zero, Quaternion.identity, 0).GetComponent<GameManager>();
 
                 SpawnLocations = SpawnPoints.GetComponent<StationSpawnerController>().GetSpawns();
                 for (int i = 0; i < 35; i++) {
@@ -77,18 +76,19 @@ public class NetworkManager : PunBehaviour {
                 RotPlatSpawnPoints = RotatingPlatformSpawnPoint.GetComponent<StationSpawnerController>().GetSpawns();
                 for (int i = 0; i < 15; i++) {
                     GameObject RotPlatform = PhotonNetwork.Instantiate("Rotating Platform", RotPlatSpawnPoints[i].transform.position, Quaternion.Euler(new Vector3(0, 0, Random.Range(0, 360))), 0);
-                    if (Random.Range(0, 1) == 0)
-                        RotPlatform.GetComponent<PlatformRotation>().TurnDirection = true;
+                    if (Random.Range(0, 2) == 0)
+                        RotPlatform.GetComponent<PhotonView>().RPC("TurnDirection", PhotonTargets.AllBuffered, true);
                     else
-                        RotPlatform.GetComponent<PlatformRotation>().TurnDirection = false;
+                        RotPlatform.GetComponent<PhotonView>().RPC("TurnDirection", PhotonTargets.AllBuffered, false);
                 }
                 HorPlatSpawnPoints = HorizontalPlatformSpawnPoint.GetComponent<StationSpawnerController>().GetSpawns();
                 for (int i = 0; i < 10; i++) {
-                    GameObject RotPlatform = PhotonNetwork.Instantiate("Horizontal Moving Platform", HorPlatSpawnPoints[i].transform.position, Quaternion.identity, 0);
-                    if (Random.Range(0, 1) == 0)
-                        RotPlatform.GetComponent<HorizontalPlatform>().Direction = true;
+                    GameObject HorPlatform = PhotonNetwork.Instantiate("Horizontal Moving Platform", HorPlatSpawnPoints[i].transform.position, Quaternion.identity, 0);
+                    if (Random.Range(0, 2) == 0)
+                        HorPlatform.GetComponent<PhotonView>().RPC("SetDirection", PhotonTargets.AllBuffered, true);
+
                     else
-                        RotPlatform.GetComponent<HorizontalPlatform>().Direction = false;
+                        HorPlatform.GetComponent<PhotonView>().RPC("SetDirection", PhotonTargets.AllBuffered, false);
                 }
                 TogWallSpawnPoints = ToggleWallSpawnPoint.GetComponent<StationSpawnerController>().GetSpawns();
                 for (int i = 0; i < 15; i++) {
@@ -129,16 +129,18 @@ public class NetworkManager : PunBehaviour {
                 GameObject.FindGameObjectWithTag("Player").GetComponent<PlayerController>().GameStarted = true;
             }
             DisableAllUI();
+            StartCoroutine("Countdown");
         }
     }
 
     public void AcceptBeginning() {
-        DelegateTemp = AcceptEnding;
         TransCtrl.SetHold(true);
         TransCtrl.Transition();
+        StartCoroutine("AcceptEnding");
     }
 
-    void AcceptEnding() {
+    IEnumerator AcceptEnding() {
+        yield return new WaitForSeconds(1);
         HunterSelectionMenu.SetActive(false);
         PlayerSelectionMenu.SetActive(false);
         LobbyPanel.SetActive(true);
@@ -149,15 +151,13 @@ public class NetworkManager : PunBehaviour {
 
     void Start() {
         if (PhotonNetwork.connected == false) {
-            PhotonNetwork.ConnectUsingSettings("0.1");
+            PhotonNetwork.ConnectUsingSettings("1");
         }
         PhotonNetwork.JoinLobby();
         Timer = 5;
         IsHunter = false;
         Notification.text = "";
         HunterSelectionMenu.gameObject.SetActive(false);
-        AbsoluteBlackScreen.gameObject.SetActive(false);
-        AbsoluteBlackScreen.GetComponent<Image>().color = new Color(0, 0, 0, 1);
         LobbyPanel.gameObject.SetActive(false);
         XPPanel.SetActive(false);
         InventoryPanel.SetActive(false);
@@ -186,8 +186,6 @@ public class NetworkManager : PunBehaviour {
         PlayerSelectionMenu.SetActive(false);
         LobbyPanel.SetActive(false);
         PlayButton.SetActive(false);
-        Notification.transform.parent.gameObject.SetActive(false);
-        AbsoluteBlackScreen.SetActive(false);
         InventoryPanel.SetActive(false);
         ShopPanel.SetActive(false);
         XPPanel.SetActive(false);
@@ -199,26 +197,31 @@ public class NetworkManager : PunBehaviour {
     }
 
     IEnumerator Countdown() {
-        for (int i = 5; i <= 0; i--) {
+        Notification.transform.parent.gameObject.SetActive(true);
+        for (int i = 5; i >= 0; i--) {
             Notification.text = "Starting game in: " + i.ToString() + "s";
             yield return new WaitForSeconds(1);
         }
+        Notification.transform.parent.gameObject.SetActive(false);
+        DisableAllUI();
+        TransCtrl.gameObject.SetActive(false);
     }
 
     public override void OnPhotonPlayerConnected(PhotonPlayer newPlayer) {
         if (PhotonNetwork.room.PlayerCount == 2) {
-            Notification.gameObject.transform.parent.gameObject.SetActive(false);
-            LobbyPanel.gameObject.SetActive(true);
-            LobbyPanel.GetComponent<LobbyPanelController>().Setup();
-
+            MenuCamera.SetActive(false);
             if (PhotonNetwork.isMasterClient) {
                 PhotonNetwork.room.IsOpen = false;
                 PhotonNetwork.room.IsVisible = false;
-                if (Random.Range(0, 1) > 0.5f) {
-                    photonView.RPC("SetSide", PhotonTargets.All, true);
+                photonView.RPC("SetSide", PhotonTargets.MasterClient, true);
+                photonView.RPC("SetSide", PhotonTargets.Others, false);
+                /*if (Random.Range(0f, 1f) > 0.5f) {
+                    photonView.RPC("SetSide", PhotonTargets.MasterClient, true);
+                    photonView.RPC("SetSide", PhotonTargets.Others, false);
                 } else {
-                    photonView.RPC("SetSide", PhotonTargets.All, false);
-                }
+                    photonView.RPC("SetSide", PhotonTargets.MasterClient, false);
+                    photonView.RPC("SetSide", PhotonTargets.Others, true);
+                }*/
             }
         }
     }
@@ -226,8 +229,6 @@ public class NetworkManager : PunBehaviour {
     public override void OnConnectedToMaster() {
         base.OnConnectedToMaster();
         PlayButton.SetActive(true);
-        AbsoluteBlackScreen.GetComponent<Image>().color = new Color(0, 0, 0, 0);
-        AbsoluteBlackScreen.SetActive(false);
     }
 
     void OnPhotonRandomJoinFailed() {
@@ -239,7 +240,9 @@ public class NetworkManager : PunBehaviour {
     }
 
     public override void OnJoinedRoom() {
-        MenuCamera.SetActive(false);
+        if (!PhotonNetwork.isMasterClient) {
+            MenuCamera.SetActive(false);
+        }
     }
 
     public override void OnLeftRoom() {
@@ -252,11 +255,20 @@ public class NetworkManager : PunBehaviour {
         Notification.text = "Waiting For A Player To Join";
     }
 
-    public void OnPlayerDisconnected(PhotonPlayer player) {
-        if (PhotonNetwork.isMasterClient == true) {
-            GameObject.Find("Game Manager").GetComponent<GameManager>().HunterWin();
-        } else {
-            GameObject.Find("Game Manager").GetComponent<GameManager>().PlayerWin();
+    public override void OnPhotonPlayerDisconnected(PhotonPlayer player) {
+        if (gm != null)
+        {
+            if (!gm.GameEnded)
+            {
+                if (PhotonNetwork.isMasterClient == true)
+                {
+                    GameObject.Find("Game Manager").GetComponent<GameManager>().HunterWin();
+                }
+                else
+                {
+                    GameObject.Find("Game Manager").GetComponent<GameManager>().PlayerWin();
+                }
+            }
         }
     }
 }

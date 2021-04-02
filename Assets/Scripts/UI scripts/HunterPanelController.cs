@@ -57,10 +57,11 @@ public class HunterPanelController : Photon.MonoBehaviour
 	public Image Ability2Icon;
 	public Text Ability2Title;
 	public Text Ability2Description;
-	public Image BlackScreen;
 	public Image TrailIcon;
 
 	bool CanClick;
+
+    public TransitionController TransCtrl;
 
     HunterController hunterCtrl;
     PlayerController playerCtrl;
@@ -76,7 +77,6 @@ public class HunterPanelController : Photon.MonoBehaviour
 
 	float PanelChangeTimer;
 	bool PanelIsChanging;
-	bool first;
 
     void Awake()
     {
@@ -87,8 +87,6 @@ public class HunterPanelController : Photon.MonoBehaviour
     void Start()
     {
         LoadPanel();
-        first = true;
-        BlackScreen.gameObject.SetActive(false);
         CanClick = true;
     }
 
@@ -175,10 +173,9 @@ public class HunterPanelController : Photon.MonoBehaviour
             ActiveSkin = 0;
             ActiveTrail = 0;
 
-            BlackScreen.gameObject.SetActive(true);
-            PanelChangeTimer = 0;
-            PanelIsChanging = true;
-            first = true;
+            TransCtrl.Transition();
+            StartCoroutine("Switch");
+            StartCoroutine("Transition");
         }
     }
 
@@ -248,36 +245,15 @@ public class HunterPanelController : Photon.MonoBehaviour
 		}
 	}
 
-	void Update () 
-	{
-		if (PanelIsChanging == true) //Check if we're in a transition
-		{
-			if (first == true) //Check if we're in the first phase (the fade in)
-			{
-				PanelChangeTimer = PanelChangeTimer + Time.deltaTime;
-				BlackScreen.color = new Color (0, 0, 0, PanelChangeTimer);
-				if (PanelChangeTimer > 1) 
-				{
-					LoadPanel ();
-					PanelChangeTimer = 1;
-					first = false;
-				}
-			} 
-			else 
-			{
-				PanelChangeTimer = PanelChangeTimer - Time.deltaTime;
-				BlackScreen.color = new Color (0, 0, 0, PanelChangeTimer);
-				if (PanelChangeTimer < 0) 
-				{
-					BlackScreen.gameObject.SetActive (false);
-					PanelChangeTimer = 0;
-					first = true;
-					CanClick = true;
-                    PanelIsChanging = false;
-				}
-			}
-		}
-	}
+    IEnumerator Switch() {
+        yield return new WaitForSeconds(1);
+        LoadPanel();
+    }
+
+    IEnumerator Transition() {
+        yield return new WaitForSeconds(2);
+        CanClick = true;
+    }
 
     int mod(int x, int m)
     {

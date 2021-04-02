@@ -49,29 +49,17 @@ public class GameSparksManager : MonoBehaviour {
         bool returnBool = false;
         string skinUnlocks = "";    //Skin unlocks are stored as a string of 0 and 1 (optimalization: change to binary representation)
         for (int i = 0; i < playerData.SkinUnlocks.GetLength(0); i++) {
-            if (playerData.SkinUnlocks[i]) {
-                skinUnlocks = skinUnlocks + " 1";
-            } else {
-                skinUnlocks = skinUnlocks + " 0";
-            }
+            skinUnlocks += playerData.SkinUnlocks[i] ? "1 " : "0 ";
         }
 
         string charUnlocks = "";
         for (int i = 0; i < playerData.CharUnlocks.GetLength(0); i++) {
-            if (playerData.CharUnlocks[i]) {
-                charUnlocks = charUnlocks + " 1";
-            } else {
-                charUnlocks = charUnlocks + " 0";
-            }
+            charUnlocks += playerData.CharUnlocks[i] ? "1 " : "0 ";
         }
 
         string trailUnlocks = "";
         for (int i = 0; i < playerData.TrailUnlocks.GetLength(0); i++) {
-            if (playerData.TrailUnlocks[i]) {
-                trailUnlocks = trailUnlocks + " 1";
-            } else {
-                trailUnlocks = trailUnlocks + " 0";
-            }
+            trailUnlocks += playerData.TrailUnlocks[i] ? "1 " : "0 ";
         }
 
         new GameSparks.Api.Requests.LogEventRequest()

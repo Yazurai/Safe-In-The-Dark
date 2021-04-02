@@ -1,12 +1,13 @@
 ﻿using UnityEngine;
 
-public class PlatformRotation : MonoBehaviour {
-    public bool TurnDirection;
-
+public class PlatformRotation : Photon.MonoBehaviour
+{
     public Animator anim;
-
-    void Start() {
-        if (TurnDirection)
+    
+    [PunRPC]
+    void TurnDirection(bool isClockwise)
+    {
+        if (isClockwise)
             anim.SetTrigger("Clock Wise");
         else
             anim.SetTrigger("Not Clock Wise");

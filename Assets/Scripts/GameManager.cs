@@ -17,7 +17,7 @@ public class GameManager : Photon.PunBehaviour
 	bool GivenXP;
 	int ActiveEvent;
 	float EventTimer;
-	bool GameEnded;
+	public bool GameEnded;
 	float timer;
 	float EventNotificationTimer;
 	bool EventActive;
@@ -296,7 +296,6 @@ public class GameManager : Photon.PunBehaviour
 	{
 		if (NetworkMan.IsHunter) 
 		{
-			//Vibrate ();
 			Notification.transform.parent.gameObject.SetActive (true);
 			Notification.gameObject.SetActive (true);
 			Notification.text = "You've Won!";
@@ -306,7 +305,6 @@ public class GameManager : Photon.PunBehaviour
 		} 
 		else 
 		{
-			//Vibrate ();
 			Notification.transform.parent.gameObject.SetActive (true);
 			Notification.gameObject.SetActive (true);
 			Notification.text = "You've Lost!";
@@ -321,7 +319,6 @@ public class GameManager : Photon.PunBehaviour
 	{
 		if (NetworkMan.IsHunter) 
 		{
-			//Vibrate ();
 			Notification.transform.parent.gameObject.SetActive (true);
 			Notification.gameObject.SetActive (true);
 			Notification.text = "You've Lost!";
@@ -331,7 +328,6 @@ public class GameManager : Photon.PunBehaviour
 		} 
 		else 
 		{
-			//Vibrate ();
 			Notification.transform.parent.gameObject.SetActive (true);
 			Notification.gameObject.SetActive (true);
 			Notification.text = "You've Won!";
@@ -345,13 +341,22 @@ public class GameManager : Photon.PunBehaviour
 	public void DestroyStation()
 	{
 		StationsLeft--;
-	}
+        information.text = "Stations left: " + StationsLeft.ToString();
+        if (StationsLeft == 0)
+        {
+            if (PhotonNetwork.isMasterClient == true)
+            {
+                GameObject SpawnLocation = GameObject.Find("Station Spawns").GetComponent<StationSpawnerController>().GetSpawn();
+                PhotonNetwork.Instantiate("Portal", SpawnLocation.transform.position, Quaternion.identity, 0);
+            }
+        }
+    }
 
 	void Start()
 	{
 		information = GameObject.FindGameObjectWithTag ("Information").GetComponent<Text>();
 		NetworkMan = GameObject.Find ("NetworkManager").GetComponent<NetworkManager>();
-		StationsLeft = 10;
+		StationsLeft = 8;
 		timer = 5;
 		Notification = NetworkMan.Notification;
 		EventNotificationTimer = 5;
@@ -361,13 +366,8 @@ public class GameManager : Photon.PunBehaviour
 		EventNotification = GameObject.FindGameObjectWithTag ("Event Notification").GetComponent<Text>();
 		EventNotification.transform.parent.gameObject.SetActive (false);
 		GivenXP = false;
-	}
-
-    /*
-	void Vibrate()
-	{
-		Handheld.Vibrate ();
-	}*/
+        information.text = "Stations left: " + StationsLeft.ToString();
+    }
 
 	[PunRPC]
 	void DisableNotification()
@@ -499,7 +499,6 @@ public class GameManager : Photon.PunBehaviour
 			}
 		}
 
-		information.text = "Stations left: " + StationsLeft.ToString();
 		if (GameEnded && GivenXP == false) 
 		{
 			timer = timer - Time.deltaTime;
@@ -517,14 +516,6 @@ public class GameManager : Photon.PunBehaviour
 					GivenXP = true;
 				}
 			}
-		}
-		if (StationsLeft == 0) 
-		{
-			if (PhotonNetwork.isMasterClient == true) 
-			{
-				GameObject SpawnLocation = GameObject.Find ("Station Spawns").GetComponent<StationSpawnerController> ().GetSpawn ();
-				PhotonNetwork.Instantiate ("Portal", SpawnLocation.transform.position, Quaternion.identity, 0);
-			} 
 		}
 	}
 }

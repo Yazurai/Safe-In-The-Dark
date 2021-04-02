@@ -99,7 +99,7 @@ public class LobbyPanelController : Photon.MonoBehaviour
 		{
 			GameObject.FindGameObjectWithTag ("Player").GetComponent<PhotonView> ().RPC ("ReadyUp", PhotonTargets.All, null);
 		}
-        NetworkMan.gameObject.GetComponent<PhotonView>().RPC("ReadyUp", PhotonTargets.All, null);
+        NetworkMan.gameObject.GetComponent<PhotonView>().RPC("SetReady", PhotonTargets.All, true);
         ReadyButton.SetActive(false);
     }
 }

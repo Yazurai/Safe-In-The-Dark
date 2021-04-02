@@ -24,7 +24,6 @@ public class MainMenuUi : MonoBehaviour {
 
     public void ToggleNotificationPanel(string message) {
         NotificationPanel.transform.GetChild(0).GetComponent<Text>().text = message;
-        NotificationPanel.SetActive(true);
-        NotificationPanel.GetComponent<NotificationPanelController>().Active = true;
+        NotificationPanel.GetComponent<NotificationPanelController>().show();
     }
 }
